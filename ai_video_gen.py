@@ -11,16 +11,17 @@ import time
 import random
 import torch
 from diffusers import StableDiffusionPipeline
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, Form
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
+import gc
 
-# Configure FFmpeg and ImageMagick paths (adjust based on your system)
-# Near the top, replace the existing change_settings block
+# Configure FFmpeg and ImageMagick paths
 change_settings({
-    "FFMPEG_BINARY": "ffmpeg",  # Render provides this
-    "IMAGEMAGICK_BINARY": "convert"  # Render provides this
+    "FFMPEG_BINARY": "ffmpeg",
+    "IMAGEMAGICK_BINARY": "convert"
 })
 
 # Configuration
@@ -45,11 +46,20 @@ config = {
 # FastAPI app instance
 app = FastAPI()
 
+# Mount templates
+templates = Jinja2Templates(directory="templates")
+
 # Request model for API input
 class VideoRequest(BaseModel):
     category: str
     topic: str
     output_file: Optional[str] = "youtube_short.mp4"
+
+# List of available categories
+CATEGORIES = [
+    "Photorealistic", "Stylized", "Design", "General (Artistic)", "Cyberpunk",
+    "Fantasy", "Horror", "Anime", "Science Fiction", "Steampunk", "Pixel Art"
+]
 
 def format_time(seconds):
     """Convert seconds to a human-readable format."""
@@ -67,13 +77,18 @@ class YouTubeVideoCreator:
         if not os.path.exists(config['FONT_PATH']):
             raise FileNotFoundError(f"Font file not found: {config['FONT_PATH']}")
 
-        print("⏳ Loading Stable Diffusion model...")
+        print("⏳ Loading Stable Diffusion model with MPS optimizations...")
         start_time = time.time()
-        self.image_gen = StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
-        self.image_gen = self.image_gen.to("mps" if torch.backends.mps.is_available() else "cpu")
+        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+        self.image_gen = StableDiffusionPipeline.from_pretrained(
+            "runwayml/stable-diffusion-v1-5",
+            torch_dtype=torch.float32,  # MPS works best with float32 on M2
+            low_cpu_mem_usage=True
+        )
+        self.image_gen = self.image_gen.to(self.device)
         self.image_gen.safety_checker = None
-        self.image_gen.enable_attention_slicing()
-        print(f"✅ Model loaded in {format_time(time.time() - start_time)}")
+        self.image_gen.enable_attention_slicing()  # Reduces memory usage
+        print(f"✅ Model loaded on {self.device} in {format_time(time.time() - start_time)}")
 
         self._ensure_background_music()
 
@@ -92,7 +107,7 @@ class YouTubeVideoCreator:
                 print(f"⚠️ Failed to download background music: {e}")
 
     def _craft_dynamic_prompt(self, category, topic, keywords):
-        """Dynamically craft a Stable Diffusion prompt with strict no-human rules."""
+        """Dynamically craft a Stable Diffusion prompt with strict no-human rules and enhanced details."""
         category = category.lower()
         topic_lower = topic.lower()
         base_negative_prompt = "humans, people, faces, portraits, crowds, cartoon, anime, blurry, low quality, CGI, text, unrealistic, abstract, painting, sketch, distorted"
@@ -134,27 +149,31 @@ class YouTubeVideoCreator:
             base_prompt = "artistic vision, {keywords}, vibrant hues, textured feel"
             style_suffix = "ethereal vibe, surreal touch, painterly textures, dreamlike atmosphere, abstract essence"
 
+        context = ""
+        negative_prompt = base_negative_prompt
+
         if "spiritual" in topic_lower:
             context = "sacred serene scene, glowing aura, ancient mystical elements, tranquil atmosphere"
-            negative_prompt = f"{base_negative_prompt}, chaotic, urban"
+            negative_prompt += ", chaotic, urban"
         elif "nature" in topic_lower or "ocean" in topic_lower:
             context = "pristine natural landscape, vivid realistic colors, golden hour light"
-            negative_prompt = f"{base_negative_prompt}, urban, artificial elements"
+            negative_prompt += ", urban, artificial elements"
         elif "technology" in topic_lower or "futuristic" in topic_lower:
             context = "cutting-edge technology, sleek metallic surfaces, futuristic design"
-            negative_prompt = f"{base_negative_prompt}, rustic, old-fashioned"
+            if "night" in topic_lower:
+                context += ", dark night sky, illuminated by artificial lights"
+            negative_prompt += ", rustic, old-fashioned"
         elif "wildlife" in topic_lower:
             context = "majestic wildlife setting, golden tones, intricate natural details"
-            negative_prompt = f"{base_negative_prompt}, urban, artificial, humans, faces"
+            negative_prompt += ", urban, artificial, humans, faces"
         elif "design" in topic_lower or "architecture" in topic_lower:
             context = "modern architectural elements, elegant structure, reflective textures"
-            negative_prompt = f"{base_negative_prompt}, cluttered, outdated"
+            negative_prompt += ", cluttered, outdated"
         elif "food" in topic_lower:
             context = "gourmet presentation, glistening textures, appetizing vivid colors"
-            negative_prompt = f"{base_negative_prompt}, unappetizing"
+            negative_prompt += ", unappetizing"
         else:
             context = f"scene relevant to {topic}, detailed and immersive"
-            negative_prompt = base_negative_prompt
 
         prompt = f"{base_prompt}, {context}, {style_suffix}, no humans, no faces"
         return prompt.format(keywords=keywords), negative_prompt
@@ -171,10 +190,10 @@ class YouTubeVideoCreator:
                 negative_prompt=negative_prompt,
                 height=960,
                 width=544,
-                num_inference_steps=20,  # Reduced for faster local testing
-                guidance_scale=9.0,
+                num_inference_steps=30,  # Increased for detail
+                guidance_scale=7.5,     # Balanced creativity and adherence
                 eta=0.8,
-                generator=torch.Generator(device="mps" if torch.backends.mps.is_available() else "cpu").manual_seed(random.randint(0, 2**32))
+                generator=torch.Generator(device=self.device).manual_seed(random.randint(0, 2**32))
             ).images[0]
 
             image = image.resize(self.config['VIDEO_SIZE'], Image.Resampling.LANCZOS)
@@ -189,6 +208,8 @@ class YouTubeVideoCreator:
         except Exception as e:
             print(f"⚠️ Image generation failed: {e}")
             return None
+        finally:
+            gc.collect()  # Clean up memory
 
     def _create_text_clip(self, text, duration):
         """Create static text clip without complex animation."""
@@ -214,22 +235,22 @@ class YouTubeVideoCreator:
             return None
 
     def generate_script(self, topic):
-        """Generate a context-aware script for the video with no human references."""
+        """Generate a context-aware script for the video with no human references and descriptive keywords."""
         print(f"📜 Generating script for topic: {topic}")
         start_time = time.time()
         prompt = f"""Create a concise YouTube Shorts script about "{topic}". 
-        Generate 3-5 scenes with 1-2 short sentences each and visual keywords.
+        Generate 3-5 scenes with 1-2 short sentences each and highly descriptive visual keywords that vividly capture the scene without including humans or faces.
         Ensure narration is engaging and contextually relevant to "{topic}".
-        Strictly exclude any human elements, faces, or people from narration and keywords; focus on objects, concepts, or scenes.
+        Focus on objects, environments, and concepts that bring the topic to life.
         Format:
         
         **Scene 1:**  
         Narration: [Concise, engaging narration]  
-        Keywords: [Non-human image keywords]  
+        Keywords: [Detailed, vivid image keywords excluding humans]  
 
         **Scene 2:**  
         Narration: [Concise, engaging narration]  
-        Keywords: [Non-human image keywords]  
+        Keywords: [Detailed, vivid image keywords excluding humans]  
         """
 
         try:
@@ -286,13 +307,21 @@ class YouTubeVideoCreator:
                     clips.append(composite.crossfadein(self.config['TRANSITION_DURATION']))
 
                 print(f"✅ Scene {idx+1} processed in {format_time(time.time() - scene_start_time)}")
+
+                # Clean up intermediate files and memory
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+                if os.path.exists(audio_path):
+                    os.remove(audio_path)
+                del img_clip, txt_clip, composite, audio
+                gc.collect()
             except Exception as e:
                 print(f"⚠️ Scene {idx+1} failed: {str(e)}")
                 continue
 
         if clips:
             print("\n🎥 Combining scenes...")
-            final_video = concatenate_videoclips(clips, method="compose")
+            final_video = concatenate_videoclips(clips, method="compose", padding=-0.1)
             
             if os.path.exists(self.config['BACKGROUND_MUSIC_PATH']):
                 try:
@@ -301,6 +330,7 @@ class YouTubeVideoCreator:
                     bg_music = bg_music.fx(audio_loop, duration=final_video.duration)
                     bg_music = audio_fadein(bg_music, 1).fx(audio_fadeout, 1)
                     final_video.audio = CompositeAudioClip([final_video.audio, bg_music])
+                    del bg_music
                 except Exception as e:
                     print(f"⚠️ Error adding background music: {e}")
 
@@ -310,17 +340,40 @@ class YouTubeVideoCreator:
                 fps=24,
                 codec="libx264",
                 audio_codec="aac",
-                threads=4,
+                threads=2,
+                preset="fast",
                 logger=None
             )
             print(f"✅ Video rendered: {output_file}")
+            del final_video
         else:
             raise ValueError("No valid clips created")
+        
         print(f"⏰ Total time taken: {format_time(time.time() - total_start_time)}")
+        gc.collect()
 
 # Instantiate the creator globally
 creator = YouTubeVideoCreator(config)
 
+# Web interface routes
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request, "categories": CATEGORIES})
+
+@app.post("/generate", response_class=FileResponse)
+async def generate_from_web(category: str = Form(...), topic: str = Form(...)):
+    try:
+        output_file = f"video_{int(time.time())}.mp4"
+        print(f"Web request: Generating video for category: {category}, topic: {topic}")
+        creator.create_video(category, topic, output_file)
+        if os.path.exists(output_file):
+            return FileResponse(output_file, media_type="video/mp4", filename=output_file)
+        raise HTTPException(status_code=500, detail="Video generation failed")
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+# API endpoint
 @app.post("/generate-video/", response_class=FileResponse)
 async def generate_video(request: VideoRequest):
     try:
@@ -331,10 +384,6 @@ async def generate_video(request: VideoRequest):
         raise HTTPException(status_code=500, detail="Video generation failed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-@app.get("/")
-async def root():
-    return {"message": "Video API is running"}
 
 if __name__ == "__main__":
     import uvicorn
