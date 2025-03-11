@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+torch
+diffusers
+moviepy
+gtts
+google-generativeai
+pillow
+requests
+pyngrok
