@@ -8,4 +8,4 @@ gtts==2.5.3
 google-generativeai==0.8.3
 pillow==10.4.0
 requests==2.32.3
-accelerate==1.0.1  # Latest as of March 2025
+accelerate==1.0.1
