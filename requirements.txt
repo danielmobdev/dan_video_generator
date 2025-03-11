@@ -7,4 +7,3 @@ gtts
 google-generativeai
 pillow
 requests
-pyngrok
