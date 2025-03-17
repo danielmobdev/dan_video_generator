@@ -23,122 +23,146 @@
         }
         .container {
             background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 30px;
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 40px;
             width: 100%;
-            max-width: 700px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         h1 {
             text-align: center;
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 700;
             color: #ffffff;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
             background: linear-gradient(90deg, #00d4ff, #007bff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
         }
         label {
             font-weight: 600;
             color: #ffffff;
-            font-size: 14px;
-            margin-bottom: 5px;
+            font-size: 15px;
+            margin-bottom: 8px;
             display: block;
         }
         select, input[type="text"], input[type="url"] {
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.1);
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.08);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
+            border-radius: 10px;
             color: #ffffff;
             font-size: 16px;
             width: 100%;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
         select:focus, input[type="text"]:focus, input[type="url"]:focus {
             outline: none;
             border-color: #00d4ff;
-            box-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
         }
-        .image-upload-container {
-            padding: 20px;
+        .upload-container {
+            padding: 25px;
             background: rgba(255, 255, 255, 0.05);
             border: 2px dashed rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
+            border-radius: 12px;
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            margin-bottom: 20px;
         }
-        .image-upload-container:hover {
+        .upload-container:hover {
             border-color: rgba(255, 255, 255, 0.4);
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
         }
-        .image-upload-container.dragover {
+        .upload-container.dragover {
             border-color: #00d4ff;
-            background: rgba(0, 212, 255, 0.1);
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+            background: rgba(0, 212, 255, 0.15);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
         }
-        .image-preview img {
+        .preview-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .preview-gallery img, .preview-gallery audio {
             width: 80px;
             height: 142px;
             object-fit: cover;
-            border-radius: 5px;
-            margin: 5px;
+            border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+        .preview-gallery audio {
+            width: 100%;
+            height: auto;
+            max-width: 200px;
         }
         .error-message {
             color: #ff5555;
             font-size: 14px;
-            margin-top: 10px;
+            margin-top: 15px;
             text-align: center;
             display: none;
-            background: rgba(255, 85, 85, 0.1);
-            padding: 8px;
-            border-radius: 5px;
+            background: rgba(255, 85, 85, 0.15);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(255, 85, 85, 0.2);
         }
         button {
-            padding: 12px;
+            padding: 15px;
             background: linear-gradient(90deg, #00d4ff, #007bff);
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             color: #ffffff;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
-            transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 25px;
+            transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
             width: 100%;
         }
         button:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
             opacity: 0.9;
-            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
+            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.5);
         }
         button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
-        .loading-spinner {
+        .progress-container {
             display: none;
-            border: 4px solid rgba(255, 255, 255, 0.2);
-            border-top: 4px solid #00d4ff;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin-top: 20px;
+            text-align: center;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #007bff);
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #00d4ff;
         }
     </style>
 </head>
@@ -156,17 +180,35 @@
             <label for="custom_prompt">Content Prompt</label>
             <input type="text" name="custom_prompt" id="custom_prompt" placeholder="e.g., A serene journey" required />
 
+            <label for="duration">Video Duration</label>
+            <select name="duration" id="duration" required>
+                <option value="30">30 Seconds</option>
+                <option value="60">60 Seconds</option>
+                <option value="90">90 Seconds</option>
+            </select>
+
             <label for="affiliate_link">Affiliate Link (Optional)</label>
             <input type="url" name="affiliate_link" id="affiliate_link" placeholder="e.g., https://amzn.to/xyz" />
 
-            <div class="image-upload-container" id="dropZone">
-                <label>Drop or Click to Upload Image (9:16 ratio recommended)</label>
-                <input type="file" name="images" id="images" accept="image/*" required hidden />
-                <div class="image-preview" id="preview"></div>
+            <div class="upload-container" id="imageDropZone">
+                <label>Drop or Click to Upload Images (9:16 ratio recommended)</label>
+                <input type="file" name="images" id="images" accept="image/*" multiple required hidden />
+                <div class="preview-gallery" id="imagePreview"></div>
+            </div>
+
+            <div class="upload-container" id="musicDropZone">
+                <label>Drop or Click to Upload Background Music (Optional, MP3)</label>
+                <input type="file" name="bg_music" id="bgMusic" accept="audio/*" hidden />
+                <div class="preview-gallery" id="musicPreview"></div>
             </div>
 
             <button type="submit" id="submitCustom">Generate Video</button>
-            <div class="loading-spinner" id="loadingSpinner"></div>
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p class="progress-text" id="progressText">Starting...</p>
+            </div>
             <p class="error-message" id="errorMessage"></p>
         </form>
     </div>
@@ -174,82 +216,116 @@
     <script>
         const form = document.getElementById('customForm');
         const errorMessage = document.getElementById('errorMessage');
-        const loadingSpinner = document.getElementById('loadingSpinner');
         const submitButton = document.getElementById('submitCustom');
-        const dropZone = document.getElementById('dropZone');
+        const imageDropZone = document.getElementById('imageDropZone');
+        const musicDropZone = document.getElementById('musicDropZone');
         const imageInput = document.getElementById('images');
-        const preview = document.getElementById('preview');
+        const musicInput = document.getElementById('bgMusic');
+        const imagePreview = document.getElementById('imagePreview');
+        const musicPreview = document.getElementById('musicPreview');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
 
-        // Handle click to open file input
-        dropZone.addEventListener('click', () => imageInput.click());
-
-        // Drag and drop handlers
-        dropZone.addEventListener('dragover', (e) => {
+        // Image upload handling
+        imageDropZone.addEventListener('click', () => imageInput.click());
+        imageDropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropZone.classList.add('dragover');
+            imageDropZone.classList.add('dragover');
         });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
+        imageDropZone.addEventListener('dragleave', () => imageDropZone.classList.remove('dragover'));
+        imageDropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('dragover');
+            imageDropZone.classList.remove('dragover');
+            imageInput.files = e.dataTransfer.files;
+            previewImages(e.dataTransfer.files);
+        });
+        imageInput.addEventListener('change', (e) => previewImages(e.target.files));
+
+        // Music upload handling
+        musicDropZone.addEventListener('click', () => musicInput.click());
+        musicDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            musicDropZone.classList.add('dragover');
+        });
+        musicDropZone.addEventListener('dragleave', () => musicDropZone.classList.remove('dragover'));
+        musicDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            musicDropZone.classList.remove('dragover');
             const files = e.dataTransfer.files;
             if (files.length > 1) {
-                errorMessage.textContent = 'Please upload only one image';
+                errorMessage.textContent = 'Please upload only one audio file';
                 errorMessage.style.display = 'block';
                 return;
             }
-            imageInput.files = files;
-            previewImage(files[0]);
+            musicInput.files = files;
+            previewMusic(files[0]);
         });
-
-        imageInput.addEventListener('change', (e) => {
+        musicInput.addEventListener('change', (e) => {
             const files = e.target.files;
             if (files.length > 1) {
-                errorMessage.textContent = 'Please upload only one image';
+                errorMessage.textContent = 'Please upload only one audio file';
                 errorMessage.style.display = 'block';
                 e.target.value = '';
-                preview.innerHTML = '';
+                musicPreview.innerHTML = '';
                 return;
             }
-            if (files.length > 0) {
-                previewImage(files[0]);
-            }
+            previewMusic(files[0]);
         });
 
-        function previewImage(file) {
-            preview.innerHTML = '';
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
-            img.onload = () => {
-                const aspectRatio = img.width / img.height;
-                const targetRatio = 9 / 16;
-                if (Math.abs(aspectRatio - targetRatio) > 0.1) {
-                    errorMessage.textContent = 'Warning: Image ratio differs from recommended 9:16';
-                    errorMessage.style.display = 'block';
-                }
-                URL.revokeObjectURL(img.src);
-            };
-            preview.appendChild(img);
+        function previewImages(files) {
+            imagePreview.innerHTML = '';
+            Array.from(files).forEach(file => {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.onload = () => {
+                    const aspectRatio = img.width / img.height;
+                    const targetRatio = 9 / 16;
+                    if (Math.abs(aspectRatio - targetRatio) > 0.1) {
+                        errorMessage.textContent = 'Warning: Some images differ from recommended 9:16 ratio';
+                        errorMessage.style.display = 'block';
+                    }
+                    URL.revokeObjectURL(img.src);
+                };
+                imagePreview.appendChild(img);
+            });
+        }
+
+        function previewMusic(file) {
+            musicPreview.innerHTML = '';
+            const audio = document.createElement('audio');
+            audio.src = URL.createObjectURL(file);
+            audio.controls = true;
+            musicPreview.appendChild(audio);
+        }
+
+        // Progress simulation
+        function updateProgress(percent, text) {
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = text;
         }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             if (!imageInput.files.length) {
-                errorMessage.textContent = 'Please upload an image';
+                errorMessage.textContent = 'Please upload at least one image';
                 errorMessage.style.display = 'block';
                 return;
             }
 
             errorMessage.style.display = 'none';
-            loadingSpinner.style.display = 'block';
+            progressContainer.style.display = 'block';
             submitButton.disabled = true;
 
             const formData = new FormData(form);
+
+            // Simulate progress (real progress would need WebSockets)
+            updateProgress(10, 'Preparing files...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            updateProgress(30, 'Generating content...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            updateProgress(60, 'Rendering video...');
 
             try {
                 const response = await fetch('/generate-custom', {
@@ -262,6 +338,7 @@
                     throw new Error(errorText || 'Failed to generate video');
                 }
 
+                updateProgress(90, 'Finalizing...');
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -271,12 +348,16 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
+                updateProgress(100, 'Video ready!');
             } catch (error) {
                 errorMessage.textContent = `Error: ${error.message}`;
                 errorMessage.style.display = 'block';
+                updateProgress(0, 'Error occurred');
             } finally {
-                loadingSpinner.style.display = 'none';
-                submitButton.disabled = false;
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    submitButton.disabled = false;
+                }, 1000);
             }
         });
     </script>

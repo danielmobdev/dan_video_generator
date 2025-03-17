@@ -39,6 +39,14 @@ config = {
         'stroke_width': 3,
         'bg_color': 'rgba(0, 0, 0, 0.7)',
         'position': ('center', 'center')
+    },
+    'AFFILIATE_TEXT_STYLE': {
+        'font_size': 80,
+        'text_color': '#00D4FF',
+        'stroke_color': '#FFFFFF',
+        'stroke_width': 2,
+        'bg_color': 'rgba(0, 0, 0, 0.7)',
+        'position': ('center', 'bottom')
     }
 }
 
@@ -66,133 +74,172 @@ class YouTubeVideoCreator:
 
     def _ensure_background_music(self):
         if not os.path.exists(self.config['BACKGROUND_MUSIC_PATH']):
-            logger.info("Downloading background music...")
+            logger.info("Downloading default background music...")
             try:
                 response = requests.get(self.config['BACKGROUND_MUSIC_URL'], stream=True, timeout=10)
                 response.raise_for_status()
                 with open(self.config['BACKGROUND_MUSIC_PATH'], 'wb') as f:
                     for chunk in response.iter_content(chunk_size=1024):
                         f.write(chunk)
-                logger.info("Background music downloaded.")
+                logger.info("Default background music downloaded.")
             except requests.RequestException as e:
                 logger.error(f"Failed to download background music: {e}")
                 raise
-        # Verify the music file
         try:
             temp_audio = AudioFileClip(self.config['BACKGROUND_MUSIC_PATH'])
-            logger.info(f"Background music duration: {temp_audio.duration} seconds")
+            logger.info(f"Default background music duration: {temp_audio.duration} seconds")
             temp_audio.close()
         except Exception as e:
-            logger.error(f"Background music file is invalid: {e}")
+            logger.error(f"Default background music file is invalid: {e}")
             raise
 
-    def _create_text_clip(self, text, duration):
+    def _create_text_clip(self, text, duration, is_affiliate=False):
+        style = self.config['AFFILIATE_TEXT_STYLE'] if is_affiliate else self.config['TEXT_STYLE']
         return TextClip(
             text,
-            fontsize=self.config['TEXT_STYLE']['font_size'],
+            fontsize=style['font_size'],
             font=self.config['FONT_PATH'],
-            color=self.config['TEXT_STYLE']['text_color'],
-            bg_color=self.config['TEXT_STYLE']['bg_color'],
-            stroke_color=self.config['TEXT_STYLE']['stroke_color'],
-            stroke_width=self.config['TEXT_STYLE']['stroke_width'],
+            color=style['text_color'],
+            bg_color=style['bg_color'],
+            stroke_color=style['stroke_color'],
+            stroke_width=style['stroke_width'],
             size=(self.config['VIDEO_SIZE'][0] - 200, None),
             method='caption',
             align='center'
-        ).set_duration(duration).set_position(self.config['TEXT_STYLE']['position'])
+        ).set_duration(duration).set_position(style['position'])
 
-    def generate_viral_hook(self, prompt, platform):
-        logger.info("Generating viral hook...")
-        hook_prompt = f"Generate an attention-grabbing hook for a {platform} video about '{prompt}'."
+    def generate_viral_hooks(self, prompt, platform):
+        logger.info("Generating viral hooks...")
+        hook_prompt = f"""Generate 5 attention-grabbing hooks for a {platform} video about '{prompt}'. Provide them as plain text without brackets, emojis, or special characters. Use only letters, numbers, and basic punctuation (periods, commas, question marks, exclamation marks). Provide them as a list, one per line, in this exact format:
+<hook text 1>
+<hook text 2>
+<hook text 3>
+<hook text 4>
+<hook text 5>"""
         try:
             response = self.model.generate_content(hook_prompt)
-            return response.text.strip()
+            raw_text = response.text.strip()
+            logger.info(f"Raw hooks response: {raw_text}")
+            hooks = [line.strip() for line in raw_text.split('\n') if line.strip()]
+            if len(hooks) != 5:
+                raise ValueError(f"Expected 5 hooks, got {len(hooks)}")
+            return hooks
         except Exception as e:
-            logger.error(f"Failed to generate hook: {e}")
+            logger.error(f"Failed to generate hooks: {e}")
             raise
 
-    def generate_script(self, prompt, platform, affiliate_link=None):
-        logger.info("Generating script...")
-        script_prompt = f"""Create a concise {platform} script about '{prompt}' with 3 short scenes and visual keywords."""
+    async def create_custom_video(self, prompt, platform, image_files: list[UploadFile], affiliate_link=None, bg_music_file: UploadFile = None, output_file="custom_video.mp4"):
+        logger.info("Starting video creation...")
+        image_paths = []
+        audio_files = []
+        bg_music_path = self.config['BACKGROUND_MUSIC_PATH']
+        custom_bg_path = None
         try:
-            response = self.model.generate_content(script_prompt)
-            raw_text = response.text.strip()
+            # Process uploaded images
+            for idx, img_file in enumerate(image_files):
+                image_path = f"uploaded_{int(time.time())}_{idx}.jpg"
+                with open(image_path, "wb") as f:
+                    f.write(await img_file.read())
+                img = Image.open(image_path).resize(self.config['VIDEO_SIZE'], Image.Resampling.LANCZOS)
+                img.save(image_path)
+                image_paths.append(image_path)
+            logger.info(f"Processed {len(image_paths)} images")
 
-            pattern = re.compile(r'\*\*Scene (\d+):\*\*\s*\nNarration:\s*(.+?)\nKeywords:\s*(.+?)(?=\n\*\*Scene|\Z)', re.DOTALL)
-            scenes = [{'number': m.group(1), 'narration': m.group(2).strip(), 'keywords': m.group(3).strip()} 
-                     for m in pattern.finditer(raw_text)]
-            
+            # Process custom background music if provided
+            if bg_music_file:
+                custom_bg_path = f"custom_bg_{int(time.time())}.mp3"
+                with open(custom_bg_path, "wb") as f:
+                    f.write(await bg_music_file.read())
+                try:
+                    temp_audio = AudioFileClip(custom_bg_path)
+                    if temp_audio.duration <= 0:
+                        raise ValueError("Audio duration is zero or invalid")
+                    logger.info(f"Custom background music duration: {temp_audio.duration} seconds")
+                    temp_audio.close()
+                    bg_music_path = custom_bg_path
+                    logger.info("Using custom background music")
+                except Exception as e:
+                    logger.warning(f"Invalid custom background music file: {e}. Falling back to default.")
+                    bg_music_path = self.config['BACKGROUND_MUSIC_PATH']
+            else:
+                logger.info("Using default background music")
+
+            # Generate 5 hooks
+            hooks = self.generate_viral_hooks(prompt, platform)
+            scenes = [{'number': str(i + 1), 'narration': hook, 'keywords': 'bold, engaging, dynamic'} 
+                     for i, hook in enumerate(hooks)]
             if affiliate_link:
                 scenes.append({
-                    'number': '4',
-                    'narration': f"Check out the link below: {affiliate_link}",
-                    'keywords': 'product showcase, call to action'
+                    'number': str(len(scenes) + 1),
+                    'narration': f"Want to know more? Check out this link: {affiliate_link}",
+                    'keywords': 'call to action, affiliate link'
                 })
-            return scenes
-        except Exception as e:
-            logger.error(f"Failed to generate script: {e}")
-            raise
+            logger.info(f"Total scenes (hooks + affiliate): {len(scenes)}")
 
-    async def create_custom_video(self, prompt, platform, image_file, affiliate_link=None, output_file="custom_video.mp4"):
-        logger.info("Starting video creation...")
-        image_path = None
-        audio_files = []
-        try:
-            image_path = f"uploaded_{int(time.time())}.jpg"
-            with open(image_path, "wb") as f:
-                f.write(await image_file.read())
-
-            img = Image.open(image_path).resize(self.config['VIDEO_SIZE'], Image.Resampling.LANCZOS)
-            img.save(image_path)
-
-            hook = self.generate_viral_hook(prompt, platform)
-            scenes = self.generate_script(prompt, platform, affiliate_link)
-            scenes.insert(0, {'number': '0', 'narration': hook, 'keywords': 'bold, engaging, dynamic'})
-
+            # Create video clips with perfect sync and smooth transitions
             clips = []
             for idx, scene in enumerate(scenes):
+                # Generate narration audio
                 audio_path = f"scene_{idx}.mp3"
                 audio_files.append(audio_path)
                 tts = gTTS(text=scene['narration'], lang='en', slow=False)
                 tts.save(audio_path)
                 audio = AudioFileClip(audio_path).fx(audio_fx.volumex, 1.5)
-                txt_clip = self._create_text_clip(scene['narration'], audio.duration)
-                img_clip = ImageClip(image_path).set_duration(audio.duration)
+                
+                # Create text and image clips with exact audio duration
+                is_affiliate = idx == len(scenes) - 1 and affiliate_link is not None
+                txt_clip = self._create_text_clip(scene['narration'], audio.duration, is_affiliate)
+                img_path = image_paths[idx % len(image_paths)]  # Cycle through images
+                img_clip = ImageClip(img_path).set_duration(audio.duration)
+                
+                # Combine into a composite clip with only the scene's audio
                 composite = CompositeVideoClip([img_clip, txt_clip]).set_audio(audio)
-                clips.append(composite.crossfadein(self.config['TRANSITION_DURATION']))
+                
+                # Apply fade-in and fade-out to visuals only, skipping start and end
+                if idx > 0 and idx < len(scenes) - 1:  # Middle slides only
+                    composite = composite.fadein(self.config['TRANSITION_DURATION']).fadeout(self.config['TRANSITION_DURATION'])
+                elif idx == 0 and len(scenes) > 1:  # First slide with more to follow
+                    composite = composite.fadeout(self.config['TRANSITION_DURATION'])
+                elif idx == len(scenes) - 1 and idx > 0:  # Last slide with previous slides
+                    composite = composite.fadein(self.config['TRANSITION_DURATION'])
+                
+                clips.append(composite)
+                logger.info(f"Created slide {idx + 1}/{len(scenes)}: {scene['narration']} (duration: {audio.duration}s)")
 
-            final_video = concatenate_videoclips(clips, method="compose")
+            # Concatenate clips sequentially without overlap
+            final_video = concatenate_videoclips(clips, method="chain", padding=0)
             logger.info(f"Final video duration: {final_video.duration} seconds")
 
-            # Load background music
-            bg_music = AudioFileClip(self.config['BACKGROUND_MUSIC_PATH']).fx(audio_fx.volumex, 0.2)
-            logger.info(f"Original background music duration: {bg_music.duration} seconds")
-
-            # If background music is shorter, concatenate it manually
+            # Handle background music (no narration, just instrumental)
+            bg_music = AudioFileClip(bg_music_path).fx(audio_fx.volumex, 0.2)
+            logger.info(f"Background music duration: {bg_music.duration} seconds")
             if bg_music.duration < final_video.duration:
-                logger.info("Background music is shorter than video, concatenating...")
+                logger.info("Background music is shorter than video, looping...")
                 loops_needed = int(final_video.duration / bg_music.duration) + 1
-                bg_music_list = [bg_music] * loops_needed
-                bg_music = concatenate_audioclips(bg_music_list)
-                logger.info(f"Concatenated background music duration: {bg_music.duration} seconds")
-            
-            # Trim to match video duration
+                bg_music = concatenate_audioclips([bg_music] * loops_needed)
+                logger.info(f"Looped background music duration: {bg_music.duration} seconds")
             bg_music = bg_music.set_duration(final_video.duration)
-            logger.info(f"Trimmed background music duration: {bg_music.duration} seconds")
+            
+            # Combine narration and background music, ensuring narration takes precedence
+            final_audio = CompositeAudioClip([final_video.audio, bg_music])
+            final_video = final_video.set_audio(final_audio).set_duration(final_video.duration)
 
-            final_video.audio = CompositeAudioClip([final_video.audio, bg_music])
-            final_video.write_videofile(output_file, fps=24, codec="libx264", audio_codec="aac", threads=4)
-
+            # Write video file
+            final_video.write_videofile(output_file, fps=24, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast")
             return output_file
         except Exception as e:
             logger.error(f"Video creation failed: {e}")
             raise
         finally:
             # Cleanup
-            if image_path and os.path.exists(image_path):
-                os.remove(image_path)
+            for path in image_paths:
+                if os.path.exists(path):
+                    os.remove(path)
             for audio_path in audio_files:
                 if os.path.exists(audio_path):
                     os.remove(audio_path)
+            if custom_bg_path and os.path.exists(custom_bg_path):
+                os.remove(custom_bg_path)
             gc.collect()
 
 creator = YouTubeVideoCreator(config)
@@ -206,15 +253,16 @@ async def generate_custom_video(
     platform: str = Form(...),
     custom_prompt: str = Form(...),
     affiliate_link: str = Form(None),
-    images: UploadFile = File(...)
+    images: list[UploadFile] = File(...),
+    bg_music: UploadFile = File(None)
 ):
     output_file = f"custom_video_{int(time.time())}.mp4"
     try:
-        await creator.create_custom_video(custom_prompt, platform, images, affiliate_link, output_file)
+        await creator.create_custom_video(custom_prompt, platform, images, affiliate_link, bg_music, output_file)
         return FileResponse(output_file, media_type="video/mp4", filename="custom_video.mp4")
     except Exception as e:
         logger.error(f"Video generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Video generation failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
