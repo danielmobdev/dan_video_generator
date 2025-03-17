@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Shorts Creator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Same CSS as before, omitted for brevity */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: #ffffff0d;
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            width: 100%;
+            max-width: 700px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        label {
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        select, input[type="text"], input[type="url"] {
+            padding: 12px;
+            background: #ffffff1a;
+            border: 1px solid #ffffff33;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        select:focus, input[type="text"]:focus, input[type="url"]:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        input[type="text"]::placeholder, input[type="url"]::placeholder {
+            color: #ffffff66;
+        }
+        select option {
+            background: #1a1a2e;
+            color: #ffffff;
+        }
+        .image-upload-container {
+            position: relative;
+            padding: 20px;
+            background: #ffffff0d;
+            border: 2px dashed #ffffff33;
+            border-radius: 10px;
+            text-align: center;
+            transition: border-color 0.3s ease;
+        }
+        .image-upload-container.dragover {
+            border-color: #00d4ff;
+            background: #00d4ff1a;
+        }
+        .image-upload-container label {
+            display: block;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .image-preview img {
+            width: 80px;
+            height: 142px;
+            object-fit: cover;
+            border-radius: 5px;
+            border: 1px solid #ffffff33;
+            transition: transform 0.2s ease;
+        }
+        .image-preview img:hover {
+            transform: scale(1.05);
+        }
+        .error-message {
+            color: #ff5555;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        button {
+            padding: 12px;
+            background: linear-gradient(90deg, #00d4ff, #007bff);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+        button:disabled {
+            background: #ffffff33;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .loading-spinner {
+            display: none;
+            border: 4px solid #ffffff33;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>YouTube Shorts Creator</h1>
+
+        <!-- Custom Video Form with Revenue Features -->
+        <form action="/generate-custom" method="post" enctype="multipart/form-data" id="customForm" class="form-section">
+            <div>
+                <label for="platform">Target Platform</label>
+                <select name="platform" id="platform" required>
+                    <option value="youtube-shorts">YouTube Shorts</option>
+                    <option value="instagram-reels">Instagram Reels</option>
+                    <option value="tiktok">TikTok</option>
+                </select>
+            </div>
+            <div>
+                <label for="custom-prompt">Content Prompt</label>
+                <input type="text" name="custom-prompt" id="custom-prompt" placeholder="e.g., A serene journey" required>
+            </div>
+            <div>
+                <label for="affiliate-link">Affiliate Link (Optional)</label>
+                <input type="url" name="affiliate-link" id="affiliate-link" placeholder="e.g., https://amzn.to/xyz">
+            </div>
+            <div class="image-upload-container" id="dropZone">
+                <label for="images">Drop or Click to Upload 1 Image (9:16 ratio)</label>
+                <input type="file" name="images" id="images" accept="image/*" hidden onchange="handleFiles(this.files)">
+                <div class="image-preview" id="preview"></div>
+                <p class="error-message" id="errorMessage">Image must have a 9:16 aspect ratio (e.g., 1080x1920)</p>
+            </div>
+            <button type="submit" id="submitCustom" disabled>Generate Video</button>
+            <div class="loading-spinner" id="loadingSpinner"></div>
+        </form>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('images');
+        const preview = document.getElementById('preview');
+        const errorMessage = document.getElementById('errorMessage');
+        const submitButton = document.getElementById('submitCustom');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        let validImage = null;
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        function handleFiles(files) {
+            errorMessage.style.display = 'none';
+
+            const fileArray = Array.from(files);
+            if (fileArray.length !== 1) {
+                errorMessage.textContent = `Please upload exactly 1 image. You uploaded ${fileArray.length}.`;
+                errorMessage.style.display = 'block';
+                submitButton.disabled = !validImage;
+                return;
+            }
+
+            const file = fileArray[0];
+            preview.innerHTML = '';
+            const previewImg = document.createElement('img');
+            previewImg.src = URL.createObjectURL(file);
+            preview.appendChild(previewImg);
+
+            validateImage(file).then(() => {
+                if (file === validImage) {
+                    updateFormData();
+                    submitButton.disabled = false;
+                    errorMessage.style.display = 'none';
+                } else {
+                    errorMessage.textContent = 'Image must have a 9:16 aspect ratio (e.g., 1080x1920)';
+                    errorMessage.style.display = 'block';
+                    submitButton.disabled = !validImage;
+                }
+            });
+        }
+
+        function validateImage(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const ratio = img.width / img.height;
+                    const expectedRatio = 9 / 16;
+                    if (Math.abs(ratio - expectedRatio) <= 0.03) {
+                        validImage = file;
+                    }
+                    resolve();
+                };
+                img.onerror = () => resolve();
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        function updateFormData() {
+            const formData = new FormData(document.getElementById('customForm'));
+            formData.delete('images');
+            if (validImage) {
+                formData.append('images', validImage);
+            }
+        }
+
+        document.getElementById('customForm').addEventListener('submit', (e) => {
+            if (!validImage) {
+                e.preventDefault();
+                errorMessage.textContent = 'Please upload 1 image with a 9:16 ratio';
+                errorMessage.style.display = 'block';
+            } else {
+                loadingSpinner.style.display = 'block';
+                submitButton.disabled = true;
+                submitButton.textContent = 'Generating...';
+            }
+        });
+
+        window.addEventListener('load', () => {
+            document.getElementById('customForm').addEventListener('submit', async (e) => {
+                if (!validImage) return;
+                try {
+                    const response = await fetch('/generate-custom', {
+                        method: 'POST',
+                        body: new FormData(e.target)
+                    });
+                    loadingSpinner.style.display = 'none';
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Generate Video';
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'custom_video.mp4';
+                        a.click();
+                    } else {
+                        errorMessage.textContent = 'Error generating video';
+                        errorMessage.style.display = 'block';
+                    }
+                } catch (err) {
+                    loadingSpinner.style.display = 'none';
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Generate Video';
+                    errorMessage.textContent = 'Network error occurred';
+                    errorMessage.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
